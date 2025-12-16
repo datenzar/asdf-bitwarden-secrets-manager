@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-GH_REPO="https://github.com/bitwarden/sdk"
+GH_REPO="https://github.com/bitwarden/sdk-sm"
 TOOL_NAME="bitwarden-secrets-manager"
 TOOL_TEST="bws --help"
 
@@ -34,16 +34,27 @@ list_all_versions() {
 
 get_arch_and_environment() {
 	local -r environment=$(uname | tr '[:upper:]' '[:lower:]')
-	local -r arch=$(arch)
+	# Prefer uname -m over arch for portability
+	local -r machine=$(uname -m)
 
 	if [[ $environment == "darwin" ]]; then
-		if [[ $arch != "x86_64" ]] && [[ $arch != "aarch64" ]]; then
+		if [[ $machine != "x86_64" ]] && [[ $machine != "aarch64" ]] && [[ $machine != "arm64" ]]; then
 			echo "macos-universal"
 		else
-			echo "$(arch)"-apple-"$environment"
+			# Normalize arm64 to aarch64 to match upstream
+			local archnorm=$machine
+			if [[ $machine == "arm64" ]]; then
+				archnorm="aarch64"
+			fi
+			echo "$archnorm"-apple-"$environment"
 		fi
 	elif [[ $environment == "linux" ]]; then
-		echo "$(arch)"-unknown-"$environment"-gnu
+		# Common Linux triples use x86_64/aarch64; normalize arm64
+		local archnorm=$machine
+		if [[ $machine == "arm64" ]]; then
+			archnorm="aarch64"
+		fi
+		echo "$archnorm"-unknown-"$environment"-gnu
 	else
 		fail "unknown environment brand for $environment"
 	fi
